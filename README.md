@@ -16,9 +16,9 @@ A compartmental PK/PD model of Pembrolizumab's anti-tumor effect implemented in 
     - Size of model: ~ 11 ODEs
     - Model structure as follows. 
 
-<p align="center">
-  <img src="https://ascpt.onlinelibrary.wiley.com/cms/asset/9868a6aa-4aa4-451e-9a75-9c34299dcbc3/psp412130-fig-0001-m.jpg" width="800">
-</p>
+
+![https://ascpt.onlinelibrary.wiley.com/cms/asset/9868a6aa-4aa4-451e-9a75-9c34299dcbc3/psp412130-fig-0001-m.jpg](img/diagram.jpg)
+
 
 **Key assumptions**
 
