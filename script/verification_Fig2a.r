@@ -1,0 +1,151 @@
+rm(list = ls())
+
+# load required packages
+library(tidyverse)
+library(mrgsolve)
+library(gridExtra)
+library(grid)
+
+# read in the model
+mod <- mread("../model/Lindauer_mus") 
+
+
+MW = 149000 # antibody molecular weight
+mouseweight = 20 # mouse weight = 20g
+
+
+# observed data pulled from Lindauer et al.,2017
+data_0 <- read.csv('../data/Fig2a/dose_0.csv', header = TRUE)
+data_point1 <- read.csv('../data/Fig2a/dose_point1.csv', header = TRUE)
+data_point4 <- read.csv('../data/Fig2a/dose_point4.csv', header = TRUE)
+data_1point4 <- read.csv('../data/Fig2a/dose_1point4.csv', header = TRUE)
+data_5 <- read.csv('../data/Fig2a/dose_5.csv', header = TRUE)
+
+# Fig2a dose regime: 
+# antibody: Mouse (79AEA)
+# Administration route: intravenous
+# sex/ strain: female, C56BL/6
+# regumen: multidose, day 0, 5, 9, and 13
+# sampling time: predose at day 0, 5, 9, 13, and 4 days after the last dose
+
+# dosing amount
+dose_point1 = 0.1 * mouseweight
+dose_point4 = 0.4 * mouseweight
+dose_1point4 = 1.4 * mouseweight
+dose_5 = 5 * mouseweight
+
+e_point1 <- c(
+  ev(amt = dose_point1*1000/(MW) , cmt = 'A1', time = 0 * 24), 
+  ev(amt = dose_point1*1000/(MW) , cmt = 'A1', time = 5 * 24), 
+  ev(amt = dose_point1*1000/(MW) , cmt = 'A1', time = 9 * 24), 
+  ev(amt = dose_point1*1000/(MW) , cmt = 'A1', time = 13 * 24)
+)
+
+e_point4 <- c(
+  ev(amt = dose_point4*1000/(MW) , cmt = 'A1', time = 0 * 24), 
+  ev(amt = dose_point4*1000/(MW) , cmt = 'A1', time = 5 * 24),
+  ev(amt = dose_point4*1000/(MW) , cmt = 'A1', time = 9 * 24),
+  ev(amt = dose_point4*1000/(MW) , cmt = 'A1', time = 13 * 24)
+)
+
+e_1point4 <- c(
+  ev(amt = dose_1point4*1000/(MW) , cmt = 'A1', time = 0 * 24),
+  ev(amt = dose_1point4*1000/(MW) , cmt = 'A1', time = 5 * 24),
+  ev(amt = dose_1point4*1000/(MW) , cmt = 'A1', time = 9 * 24),
+  ev(amt = dose_1point4*1000/(MW) , cmt = 'A1', time = 13 * 24)
+)
+
+e_5 <- c(
+  ev(amt = dose_5*1000/(MW) , cmt = 'A1', time = 0 * 24),
+  ev(amt = dose_5*1000/(MW) , cmt = 'A1', time = 5 * 24),
+  ev(amt = dose_5*1000/(MW) , cmt = 'A1', time = 9 * 24),
+  ev(amt = dose_5*1000/(MW) , cmt = 'A1', time = 13 * 24)
+)
+
+# simulation
+N = 100 # pop size
+
+sim0 <- mod %>% 
+  mrgsim(delta = 1, end = 20 * 24, nid = N) %>%
+  as_tibble() %>% select(time, TV) %>% group_by(time) %>% 
+  summarize(lo=quantile(TV, 0.1), hi=quantile(TV, 0.9), med = quantile(TV, 0.5))
+
+
+sim_point1 <- mod %>% ev(e_point1) %>%
+  mrgsim(delta = 1, end = 20 * 24, nid = N) %>%
+  as_tibble() %>% select(time, TV) %>% group_by(time) %>% 
+  summarize(lo=quantile(TV, 0.1), hi=quantile(TV, 0.9), med = quantile(TV, 0.5))
+
+
+sim_point4 <- mod %>% ev(e_point4) %>%
+  mrgsim(delta = 1, end = 20 * 24, nid = N) %>%
+  as_tibble() %>% select(time, TV) %>% group_by(time) %>% 
+  summarize(lo=quantile(TV, 0.1), hi=quantile(TV, 0.9), med = quantile(TV, 0.5))
+
+
+sim_1point4 <- mod %>% ev(e_1point4) %>%
+  mrgsim(delta = 1, end = 20 * 24, nid = N) %>%
+  as_tibble() %>% select(time, TV) %>% group_by(time) %>% 
+  summarize(lo=quantile(TV, 0.1), hi=quantile(TV, 0.9), med = quantile(TV, 0.5))
+
+
+sim_5 <- mod %>% ev(e_5) %>%
+  mrgsim(delta = 1, end = 20 * 24, nid = N) %>%
+  as_tibble() %>% select(time, TV) %>% group_by(time) %>% 
+  summarize(lo=quantile(TV, 0.1), hi=quantile(TV, 0.9), med = quantile(TV, 0.5))
+
+# reproduce Fig 2a
+TumorVolume_0 <- ggplot() + 
+  #  geom_line(data = sim0, aes(x = time/24, y = med, color = 'median, predicted'), size = 0.5) + 
+  geom_ribbon(data = sim0, aes(x = time/24, ymin=lo,ymax=hi, color = 'predicted'), fill="gray", alpha = 0.3) + 
+  geom_line(data = data_0, aes(x = time, y = tumor_volume, color = 'observed'), size = 1) + 
+  labs(y = 'tumor volume (uL)', x = 'time (days)', 
+       color = '') + ggtitle('dose = 0mg/kg') + xlim(0.01, 16) + 
+  scale_y_continuous(trans='log10', limits = c(1,3000)) + theme(legend.position = "bottom") 
+
+TumorVolume_point1 <- ggplot() + 
+  #  geom_line(data = sim_point1, aes(x = time/24, y = med, color = 'median, predicted'), size = 0.5) + 
+  geom_ribbon(data = sim_point1, aes(x = time/24, ymin=lo,ymax=hi, color = 'predicted'), fill="gray", alpha = 0.3) + 
+  geom_line(data = data_point1, aes(x = time, y = tumor_volume, color = 'observed'), size = 1) + 
+  labs(y = 'tumor volume (uL)', x = 'time (days)', 
+       color = '') + ggtitle('dose = 0.1mg/kg') + xlim(0.01, 16) + 
+  scale_y_continuous(trans='log10', limits = c(1,3000)) + theme(legend.position = "bottom") 
+
+TumorVolume_point4 <- ggplot() + 
+  #  geom_line(data = sim_point4, aes(x = time/24, y = med, color = 'median, predicted'), size = 0.5) + 
+  geom_ribbon(data = sim_point4, aes(x = time/24, ymin=lo,ymax=hi, color = 'predicted'), fill="gray", alpha = 0.3) +   
+  geom_line(data = data_point4, aes(x = time, y = tumor_volume, color = 'observed'), size = 1) + 
+  labs(y = 'tumor volume (uL)', x = 'time (days)', 
+       color = '') + ggtitle('dose = 0.4mg/kg') + xlim(0.01, 16) + 
+  scale_y_continuous(trans='log10', limits = c(1,3000)) + theme(legend.position = "bottom")
+
+TumorVolume_1point4 <- ggplot() +
+  #  geom_line(data = sim_1point4, aes(x = time/24, y = med, color = 'median, predicted'), size = 0.5) + 
+  geom_ribbon(data = sim_1point4, aes(x = time/24, ymin=lo,ymax=hi, color = 'predicted'), fill="gray", alpha = 0.3) + 
+  geom_line(data = data_1point4, aes(x = time, y = tumor_volume, color = 'observed'), size = 1) + 
+  labs(y = 'tumor volume (uL)', x = 'time (days)', 
+       color = '') + ggtitle('dose = 1.4mg/kg') + xlim(0.01, 16) + 
+  scale_y_continuous(trans='log10', limits = c(1,3000))  + theme(legend.position = "bottom")
+
+TumorVolume_5 <- ggplot() + 
+  #  geom_line(data = sim_5, aes(x = time/24, y = med, color = 'median, predicted'), size = 0.5) + 
+  geom_ribbon(data = sim_5, aes(x = time/24, ymin=lo,ymax=hi, color = 'predicted'), fill="gray", alpha = 0.3) + 
+  geom_line(data = data_5, aes(x = time, y = tumor_volume, color = 'observed'), size = 1) + 
+  labs(y = 'tumor volume (uL)', x = 'time (days)', 
+       color = '') + ggtitle('dose = 5mg/kg') + xlim(0.01, 16) + 
+  scale_y_continuous(trans='log10', limits = c(1,3000)) + theme(legend.position = "bottom")
+
+blankgraph <- textGrob(" ")
+
+fig2a = grid.arrange(TumorVolume_1point4, TumorVolume_5, blankgraph, 
+             TumorVolume_0, TumorVolume_point1, TumorVolume_point4, ncol=3)
+
+# save the plot
+ggsave(
+  '../img/Fig2a.png',
+  plot = fig2a,
+  scale = 1,
+  dpi = 300,
+  limitsize = FALSE,
+)
+
